@@ -1,5 +1,6 @@
 SELECT * FROM employees.employee
-INNER JOIN role ON employee.role_id = role.id;
+INNER JOIN role ON employee.role_id = role.id
+INNER JOIN department ON role.department_id = department.id;
 
 INSERT INTO employee(first_name,last_name,role_id,manager_id) VALUES ("bobithy","billysons",1,3);
 SELECT * FROM employees.employee
