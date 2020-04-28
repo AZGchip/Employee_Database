@@ -1,0 +1,23 @@
+{
+  "name": "Employee_Database",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AZGchip/Employee_Database.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/AZGchip/Employee_Database/issues"
+  },
+  "homepage": "https://github.com/AZGchip/Employee_Database#readme",
+  "dependencies": {
+    "inquirer": "^7.1.0"
+  }
+}
