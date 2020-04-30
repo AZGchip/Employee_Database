@@ -1,5 +1,21 @@
-const inquirer = require("inquirer")
+const inquirer = require("inquirer");
+const mysql = require("mysql");
+const connection = mysql.createConnection({
+    host: "localhost",
+    port: 3306,
+    user: "root",
+    password: "",
+    database: "employees"
+});
+connection.connect(function (err) {
+    if (err) {
+        console.error("error connecting: " + err.stack);
+        return;
+    }
+    console.log("connected as id " + connection.threadId);
+});
 //start menu
+startMenu()
 function startMenu() {
     inquirer
         .prompt({
@@ -29,12 +45,15 @@ function startMenu() {
                     break;
 
                 case "Exit":
-                    return;
+                    return console.log("goodbye");
             }
         });
 }
-//view items menu
-function viewMenu() {
+
+
+
+//add items menu
+function addMenu() {
     inquirer
         .prompt({
             name: "action",
@@ -50,25 +69,11 @@ function viewMenu() {
             ]
         })
         .then(function (answer) {
-            switch (answer.action) {
-                case "Employee":
-                    addEmployee();
-                    break;
-
-                case "Manager":
-                    addManager();
-                    break;
-
-                case "Role":
-                    addRole();
-                    break;
-
-                case "Department":
-                    addDepartment();
-                    break;
-
-                case "Back":
-                   startMenu();
+            if (answer.action === "Back") {
+                startMenu();
+            }
+            else {
+                add(answer.action)
             }
         });
 }
@@ -89,25 +94,73 @@ function removeMenu() {
             ]
         })
         .then(function (answer) {
-            switch (answer.action) {
-                case "Employee":
-                    removeEmployee();
-                    break;
-
-                case "Manager":
-                    removeManager();
-                    break;
-
-                case "Role":
-                   removeRole();
-                    break;
-
-                case "Department":
-                    removeDepartment();
-                    break;
-
-                case "Back":
-                   startMenu();
+            //back to menu
+            if (answer.action === "Back") {
+                startMenu();
             }
+            //to Remove menu
+            else {
+                let deleteType = answer.action.toLowerCase()
+                getData(deleteType, true)
+            }
+        });
+}
+
+function getData(selection, deleteCall) {
+    let search = `SELECT * FROM ${selection}`
+    connection.query(search, function (err, result) {
+        if (err) throw err;
+        if (deleteCall) {
+            // console.log(result)
+            removeList(result,selection)
+        }
+        else { showlist(result) }
+    });
+
+}
+
+function removeList(list) {
+    let choice = []
+    list.forEach(element => {
+        if (element === undefined) {
+            console.log("Error:selected list item is undefined in function removeList()")
+        }
+        else {
+            let keys = Object.keys(element);
+            let formatedElement = keys.reduce((acc, key) => {
+                if (key) {
+                    acc += `${key}: ${element[key]}| `;
+                }
+                return acc;
+            }, "")
+            console.log(formatedElement);
+            choice.push(formatedElement);
+        }
+    });
+    // for(let i = 0;i < list.length;i++){
+
+    //     else{
+    //         console.log(list[i].id)
+    //     // list[i].forEach(x => {
+    //     //   if(x&& x !== null) {} 
+    //     // });
+    //     }    
+    // }
+    choice.push(new inquirer.Separator())
+    choice.push("back")
+    // console.log(choice)
+    inquirer
+        .prompt({
+            name: "action",
+            type: "rawlist",
+            message: "Remove:",
+            choices: choice,
+        })
+        .then(function (answer) {
+            if (answer.action === "back") {
+                removeMenu()
+            }
+            else { console.log("remove choice = " + answer.action) }
+//id = parsint(answer.action.split("| ","")[0].split('id: ')[0])
         });
 }
