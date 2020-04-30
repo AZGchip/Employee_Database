@@ -112,14 +112,14 @@ function getData(selection, deleteCall) {
         if (err) throw err;
         if (deleteCall) {
             // console.log(result)
-            removeList(result,selection)
+            removeList(result, selection)
         }
         else { showlist(result) }
     });
 
 }
 
-function removeList(list) {
+function removeList(list, selection) {
     let choice = []
     list.forEach(element => {
         if (element === undefined) {
@@ -161,6 +161,8 @@ function removeList(list) {
                 removeMenu()
             }
             else { console.log("remove choice = " + answer.action) }
-//id = parsint(answer.action.split("| ","")[0].split('id: ')[0])
+            let id = answer.action.split("| ")[0]
+            id = id.match(/\d+/)[0];
+            
         });
 }
