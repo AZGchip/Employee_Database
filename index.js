@@ -57,7 +57,7 @@ function addMenu() {
     inquirer
         .prompt({
             name: "action",
-            type: "rawlist",
+            type: "list",
             message: "Add:",
             choices: [
                 "Employee",
@@ -157,12 +157,47 @@ function removeList(list, selection) {
             choices: choice,
         })
         .then(function (answer) {
+            console.log(answer.action)
             if (answer.action === "back") {
-                removeMenu()
+                removeMenu();
             }
-            else { console.log("remove choice = " + answer.action) }
-            let id = answer.action.split("| ")[0]
-            id = id.match(/\d+/)[0];
-            
+            else {
+                console.log("remove choice = " + answer.action)
+                let id = answer.action.split("| ")[0]
+                id = parseInt(id.match(/\d+/)[0])
+                removeFromTable(id, selection)
+            }
         });
+}
+function removeFromTable(id, table) {
+    let deleteParams = `DELETE FROM ${table} WHERE id =${id}`
+    connection.query(deleteParams, function (err, result) {
+        if (err) throw err;
+        else {
+            inquirer
+                .prompt({
+                    name: "action",
+                    type: "list",
+                    message: `Successfully Removed ${table} From Database!`,
+                    choices: [
+                        "Back To Main Menu",
+                        `Remove Another ${table}`,
+                        "Exit",
+                    ]
+                })
+                .then(function (answer) {
+                    let action = answer.action;
+                    if (action.includes("Remove Another")) {
+                        getData(table, true);
+                    }
+                    else if (action === "Back To Main Menu") {
+                        startMenu();
+                    }
+                    else if (action === "Exit") {
+                        return console.log("Goodbye")
+                    }
+                });
+        }
+    });
+
 }
