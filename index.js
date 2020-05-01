@@ -73,7 +73,9 @@ function addMenu() {
                 startMenu();
             }
             else {
-                addForm(toLowerCase(answer.action))
+                let sentTable = answer.action.toLowerCase();
+                console.log("sentTable = " + sentTable)
+                addSplitter(sentTable)
             }
         });
 }
@@ -115,12 +117,13 @@ function getData(selection, deleteCall) {
             removeList(result, selection)
         }
         else {
+            console.log("returning " + result)
             return result;
         }
     });
 
 }
-function formatData(list){
+function formatData(list) {
     let choice = [];
     list.forEach(element => {
         if (element === undefined) {
@@ -195,12 +198,85 @@ function removeFromTable(id, table) {
         }
     });
 }
-function addForm(table) {
-   
-    
-    let manager_id = '';
-    let role_id = '';
-    let department_id = '';
+function addSplitter(table) {
+    console.log("addform table =" + table)
+
+
+
+    switch (table) {
+        case "employee":
+            employeeQ1(table)
+            break;
+
+        case "role":
+            roleQ1(table);
+            break;
+
+        case "department":
+            promptinfo(
+                {
+                    type: "input",
+                    message: "Enter Department Name",
+                    name: "title"
+                },(table) 
+            );
+            break;
+
+        case "back":
+            addMenu();
+    }
+}
+function roleQ1(selection) {
+    let search = `SELECT * FROM ${selection}`
+    connection.query(search, function (err, result) {
+        if (err) throw err;
+        else {
+            let departments = formatData(result);
+            const roleQuestions = [
+                {
+                    type: "input",
+                    message: "Enter Role Title",
+                    name: "title"
+                },
+                {
+                    type: "number",
+                    message: "Enter salary",
+                    name: "salary"
+                },
+                {
+                    type: "list",
+                    message: "Select Department",
+                    name: "role_id_list",
+                    choices: departments
+                },
+            ]
+            promptinfo(roleQuestions, selection);
+        }
+
+    });
+}
+function employeeQ1(selection) {
+    let search = `SELECT * FROM ${selection}`
+    connection.query(search, function (err, result) {
+        if (err) throw err;
+        else {
+            let formated = formatData(result);
+            employeeQ2(selection, formated);
+        }
+
+    });
+}
+function employeeQ2(selection, manager_id) {
+    let search = `SELECT * FROM ${"role"}`
+    connection.query(search, function (err, result) {
+        if (err) throw err;
+        else {
+            let formated = formatData(result);
+            employeeQ3(selection, formated, manager_id)
+        }
+    });
+}
+function employeeQ3(selection, role_id, manager_id) {
     const employeeQuestions = [
         {
             type: "input",
@@ -208,53 +284,28 @@ function addForm(table) {
             name: "first_name"
         },
         {
-            type: "number",
+            type: "input",
             message: "Enter Last Name of Employee",
             name: "last_name"
         },
         {
             type: "list",
             message: "Select Role",
-            name: "role_id",
+            name: "role_id_list",
             choices: role_id
         },
         {
             type: "list",
             message: "select Manager",
-            name: "manager_id",
-            choices:manager_id
+            name: "manager_id_list",
+            choices: manager_id
         },
-        {
-            type: "input",
-            message: "Enter Manager Email",
-            name: "email"
-        },
-        {
-            type: "input",
-            message: "Enter Manager Office Number",
-            name: "office"
-        },
+
     ]
-    switch (table) {
-        case "employee":
-            manager_id = formatData(getData(table));
-            role_id = formatData(getData("role"));
-
-            break;
-
-        case "manager":
-            addMenu();
-            break;
-
-        case "role":
-            removeMenu();
-            break;
-
-        case "department":
-            return console.log("goodbye");
-    }
+    promptinfo(employeeQuestions, selection)
 }
 async function promptinfo(array, job) {
+    const info = [];
     //loops through given array of questions using inquirer. builds an object
     for (let i = 0; i < array.length; i++) {
         await inquirer.prompt(array[i])
@@ -266,15 +317,41 @@ async function promptinfo(array, job) {
                     console.log("Please Input valid Data");
                     i--;
                 }
-                //if the key contains email, but the given answer doesnt match the regex, asks for valid email. re-asks question
-                else if (key.includes("email") && !answer[key].match(/^(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+)@(?:[a-z0-9]+)\.(?:[a-z0-9]+)$/g)) {
-                    console.log("Please Input valid Email Address   Example:'johnsmith@example.com'");
+                else if (key.includes("salary") && isNaN(answer[key])) {
+                    console.log("Please Input Valid Salary");
                     i--;
+                }
+                else if (key.includes("_list")) {
+                    let id = answer[key].split("| ")[0]
+                    id = parseInt(id.match(/\d+/)[0])
+                    answer[key] = id;
+                    info.push(answer[key]);
                 }
                 //if no validation problems are found, adds key/attribute pair to startInfo
                 else {
-                    info[key] = answer[key];
+                    console.log(answer[key])
+                    info.push(answer[key]);
                 }
             })
     }
+    let addType;
+    if (job === "employee") {
+        addType = `INSERT INTO employee (first_name,last_name,role_id,manager_id) VALUES ("${info[0]}","${info[1]}",${info[2]},${info[3]})`;
+        console.log(addType)
+    }
+    else if (job === "role") {
+        addType = `INSERT INTO role (title,salary,department_id) VALUES (${info[0]},${info[1]},${info[2]})`;
+    }
+    else if (job === "department") {
+        addType = `INSERT INTO role (name) VALUES (${info[0]})`;
+    }
+
+    connection.query(addType, function (err, result) {
+        if(err){
+            console.log(err)
+        }
+        else{
+            console.log(job +" Added")
+        }
+    })
 }
