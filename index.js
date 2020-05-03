@@ -1,5 +1,8 @@
+// Dependencies
 const inquirer = require("inquirer");
 const mysql = require("mysql");
+
+//mysql connection 
 const connection = mysql.createConnection({
     host: "localhost",
     port: 3306,
@@ -7,23 +10,29 @@ const connection = mysql.createConnection({
     password: "",
     database: "employees"
 });
+
+//If Connection Successful, Runs Program
 connection.connect(function (err) {
     if (err) {
         console.error("error connecting: " + err.stack);
         return;
     }
-    console.log("connected as id " + connection.threadId);
+    console.log("connected as id " + connection.threadId)
+    startMenu();
 });
-//start menu
-startMenu()
+
+//-------------------- MENUS
+
+//Main Menu -- prompts user to select sub menus
 function startMenu() {
     inquirer
         .prompt({
             name: "action",
-            type: "rawlist",
+            type: "list",
             message: "What would you like to do?",
             choices: [
                 "View Data",
+                "Edit Data",
                 "Add Data",
                 "Remove Data",
                 new inquirer.Separator(),
@@ -35,24 +44,76 @@ function startMenu() {
                 case "View Data":
                     viewMenu();
                     break;
-
                 case "Add Data":
                     addMenu();
                     break;
-
                 case "Remove Data":
                     removeMenu();
                     break;
-
+                case "Edit Data":
+                    editMenu();
+                    break;
                 case "Exit":
-                    return console.log("goodbye");
+                    return console.log("Goodbye");
             }
         });
 }
 
-
-
-//add items menu
+//View Menu - User Selects What Table to View or Goes Back to Menu
+function viewMenu() {
+    inquirer
+        .prompt({
+            name: "action",
+            type: "list",
+            message: "View:",
+            choices: [
+                "Employee",
+                "Role",
+                "Department",
+                new inquirer.Separator(),
+                "Back"
+            ]
+        })
+        //if back. return to menu. If Else, send lowercase answer selection to view()
+        .then(function (answer) {
+            if (answer.action === "Back") {
+                startMenu();
+            }
+            else {
+                let sentTable = answer.action.toLowerCase();
+                view(sentTable)
+            }
+        });
+}
+function editMenu() {
+    inquirer
+        .prompt({
+            name: "action",
+            type: "list",
+            message: "Select What to edit",
+            choices: [
+                "Employee",
+                "Role",
+                "Department",
+                new inquirer.Separator(),
+                "Back"
+            ]
+        })
+        .then(function (answer) {
+            if (answer.action === "Back") {
+                startMenu();
+            }
+            else if (answer.action !== "Role") {
+                console.log("sorry,this functionallity has yet to be added")
+                editMenu()
+            }
+            else {
+                let sentTable = answer.action.toLowerCase();
+                editRole(sentTable)
+            }
+        });
+}
+//add items menu -- Sends user lowercased selection to addSplitter()
 function addMenu() {
     inquirer
         .prompt({
@@ -61,7 +122,6 @@ function addMenu() {
             message: "Add:",
             choices: [
                 "Employee",
-                "Manager",
                 "Role",
                 "Department",
                 new inquirer.Separator(),
@@ -74,12 +134,11 @@ function addMenu() {
             }
             else {
                 let sentTable = answer.action.toLowerCase();
-                console.log("sentTable = " + sentTable)
                 addSplitter(sentTable)
             }
         });
 }
-//Remove Menu
+//Remove Menu -- selected input is sent to getData
 function removeMenu() {
     inquirer
         .prompt({
@@ -100,29 +159,32 @@ function removeMenu() {
             if (answer.action === "Back") {
                 startMenu();
             }
-            //to Remove menu
+            //to Remove list with selected table
             else {
-                let deleteType = answer.action.toLowerCase()
-                getData(deleteType, true)
+                let table = answer.action.toLowerCase()
+                removeList(table)
             }
         });
 }
 
-function getData(selection, deleteCall) {
-    let search = `SELECT * FROM ${selection}`
-    connection.query(search, function (err, result) {
-        if (err) throw err;
-        if (deleteCall) {
-            // console.log(result)
-            removeList(result, selection)
-        }
-        else {
-            console.log("returning " + result)
-            return result;
-        }
-    });
+let getData = function (table) {
+    return new Promise(function (resolve, reject) {
+        let search = `SELECT * FROM ${table}`
+        connection.query(search, function (err, result) {
+            if (err) throw err;
+            else {
+                // console.log("returning " + result)
 
+                resolve(result);
+
+            }
+        })
+
+        return resolve
+    })
 }
+
+
 function formatData(list) {
     let choice = [];
     list.forEach(element => {
@@ -142,33 +204,112 @@ function formatData(list) {
     });
     return choice
 }
-function removeList(list, selection) {
-    let choice = formatData(list)
-    choice.push(new inquirer.Separator())
-    choice.push("back")
-    // console.log(choice)
-    inquirer
-        .prompt({
-            name: "action",
-            type: "list",
-            message: "Remove:",
-            choices: choice,
+function editRole(table) {
+    let employee_id;
+    let role_id
+    getData("employee")
+        .then(function (result) {
+            getData("role").then((roles) => {
+                inquirer
+                    .prompt({
+                        name: "action",
+                        type: "list",
+                        message: `Select the employee to change role`,
+                        choices: formatData(result)
+                    })
+                    .then(function (answer) {
+
+
+                        employee_id = answer.action.split("| ")[0]
+                        employee_id = parseInt(employee_id.match(/\d+/)[0])
+                        inquirer
+                            .prompt({
+                                name: "action",
+                                type: "list",
+                                message: `Select the employee to change role`,
+                                choices: formatData(roles)
+                            })
+                            .then(function (answer) {
+
+
+                                role_id = answer.action.split("| ")[0]
+                                role_id = parseInt(role_id.match(/\d+/)[0])
+                                edit(employee_id, role_id, table)
+
+                            });
+
+                    });
+            })
+
+
+
         })
-        .then(function (answer) {
-            console.log(answer.action)
-            if (answer.action === "back") {
-                removeMenu();
-            }
-            else {
-                console.log("remove choice = " + answer.action)
-                let id = answer.action.split("| ")[0]
-                id = parseInt(id.match(/\d+/)[0])
-                removeFromTable(id, selection)
-            }
-        });
+
+}
+function edit(eId, rId, table) {
+    let editParams = `UPDATE employee SET role_id = ${rId} WHERE employee_id = ${eId}`
+    connection.query(editParams, function (err, result) {
+        if (err) throw err;
+        else {
+            inquirer
+                .prompt({
+                    name: "action",
+                    type: "list",
+                    message: `Successfully edited ${table} From Database!`,
+                    choices: [
+                        "Back To Main Menu",
+                        `Edit Another ${table}`,
+                        "Exit",
+                    ]
+                })
+                .then(function (answer) {
+                    let action = answer.action;
+                    if (action.includes("Edit Another")) {
+                        editMenu(table);
+                    }
+                    else if (action === "Back To Main Menu") {
+                        startMenu();
+                    }
+                    else if (action === "Exit") {
+                        return console.log("Goodbye")
+                    }
+                });
+        }
+    });
+}
+// builds choices for inquirer using the selected database table
+function removeList(table) {
+    getData(table)
+        .then(function (result) {
+            console.log(result)
+            let choice = formatData(result)
+            choice.push(new inquirer.Separator())
+            choice.push("back")
+            // console.log(choice)
+            inquirer
+                .prompt({
+                    name: "action",
+                    type: "list",
+                    message: "Remove:",
+                    choices: choice,
+                })
+                .then(function (answer) {
+                    console.log(answer.action)
+                    if (answer.action === "back") {
+                        removeMenu();
+                    }
+                    else {
+                        console.log("remove choice = " + answer.action)
+                        let id = answer.action.split("| ")[0]
+                        id = parseInt(id.match(/\d+/)[0])
+                        removeFromTable(id, table)
+                    }
+                });
+        })
+
 }
 function removeFromTable(id, table) {
-    let deleteParams = `DELETE FROM ${table} WHERE id =${id}`
+    let deleteParams = `DELETE FROM ${table} WHERE ${table + "_id"} =${id}`
     connection.query(deleteParams, function (err, result) {
         if (err) throw err;
         else {
@@ -186,7 +327,7 @@ function removeFromTable(id, table) {
                 .then(function (answer) {
                     let action = answer.action;
                     if (action.includes("Remove Another")) {
-                        getData(table, true);
+                        removeList(table);
                     }
                     else if (action === "Back To Main Menu") {
                         startMenu();
@@ -205,7 +346,7 @@ function addSplitter(table) {
 
     switch (table) {
         case "employee":
-            employeeQ1(table)
+            employeeAdd(table)
             break;
 
         case "role":
@@ -213,21 +354,78 @@ function addSplitter(table) {
             break;
 
         case "department":
-            promptinfo(
-                {
-                    type: "input",
-                    message: "Enter Department Name",
-                    name: "title"
-                },(table) 
-            );
+            let question =[{
+                type: "input",
+                message: "Enter Department Name",
+                name: "title"
+            }]
+            promptinfo(question,table)
             break;
 
         case "back":
             addMenu();
     }
 }
+
+function view(table) {
+    let search;
+
+
+    switch (table) {
+        case "employee":
+            search = `SELECT * FROM employee
+        JOIN role ON employee.role_id = role.role_id
+        JOIN department ON role.department_id = department.department_id
+        
+        `
+            break;
+        case "role":
+            search = `SELECT * FROM role
+                INNER JOIN department ON role.department_id = department.department_id;`
+            break;
+
+        case "department":
+            search = `SELECT * FROM department `
+    }
+    connection.query(search, function (err, result) {
+        if (err) throw err;
+        else {
+            viewTable(result, table)
+        }
+
+    });
+
+
+}
+
+function viewTable(info, table) {
+    console.table(info)
+
+    inquirer
+        .prompt({
+            name: "action",
+            type: "list",
+            message: "",
+            choices: [
+                "Main Menu",
+                "back"
+            ]
+
+        })
+        .then(function (answer) {
+            console.log(answer.action)
+            if (answer.action === "back") {
+                viewMenu()
+            }
+            else {
+                startMenu()
+            }
+        });
+}
+
+
 function roleQ1(selection) {
-    let search = `SELECT * FROM ${selection}`
+    let search = `SELECT * FROM department`
     connection.query(search, function (err, result) {
         if (err) throw err;
         else {
@@ -255,55 +453,46 @@ function roleQ1(selection) {
 
     });
 }
-function employeeQ1(selection) {
-    let search = `SELECT * FROM ${selection}`
-    connection.query(search, function (err, result) {
-        if (err) throw err;
-        else {
-            let formated = formatData(result);
-            employeeQ2(selection, formated);
-        }
 
-    });
-}
-function employeeQ2(selection, manager_id) {
-    let search = `SELECT * FROM ${"role"}`
-    connection.query(search, function (err, result) {
-        if (err) throw err;
-        else {
-            let formated = formatData(result);
-            employeeQ3(selection, formated, manager_id)
-        }
-    });
-}
-function employeeQ3(selection, role_id, manager_id) {
-    const employeeQuestions = [
-        {
-            type: "input",
-            message: "Enter First Name of Employee",
-            name: "first_name"
-        },
-        {
-            type: "input",
-            message: "Enter Last Name of Employee",
-            name: "last_name"
-        },
-        {
-            type: "list",
-            message: "Select Role",
-            name: "role_id_list",
-            choices: role_id
-        },
-        {
-            type: "list",
-            message: "select Manager",
-            name: "manager_id_list",
-            choices: manager_id
-        },
 
-    ]
-    promptinfo(employeeQuestions, selection)
+function employeeAdd(selection) {
+    getData("employee")
+        .then(function (manager_id) {
+            getData("role")
+                .then(function (role_id) {
+                    const employeeQuestions = [
+                        {
+                            type: "input",
+                            message: "Enter First Name of Employee",
+                            name: "first_name"
+                        },
+                        {
+                            type: "input",
+                            message: "Enter Last Name of Employee",
+                            name: "last_name"
+                        },
+                        {
+                            type: "list",
+                            message: "Select Role",
+                            name: "role_id_list",
+                            choices: formatData(role_id)
+                        },
+                        {
+                            type: "list",
+                            message: "select Manager",
+                            name: "manager_id_list",
+                            choices: formatData(manager_id)
+                        },
+
+                    ]
+                    promptinfo(employeeQuestions, selection)
+                })
+        })
+
+
 }
+
+
 async function promptinfo(array, job) {
     const info = [];
     //loops through given array of questions using inquirer. builds an object
@@ -340,18 +529,41 @@ async function promptinfo(array, job) {
         console.log(addType)
     }
     else if (job === "role") {
-        addType = `INSERT INTO role (title,salary,department_id) VALUES (${info[0]},${info[1]},${info[2]})`;
+        addType = `INSERT INTO role (title,salary,department_id) VALUES ("${info[0]}",${info[1]},${info[2]})`;
     }
     else if (job === "department") {
-        addType = `INSERT INTO role (name) VALUES (${info[0]})`;
+        addType = `INSERT INTO department (name) VALUES ("${info[0]}")`;
     }
 
     connection.query(addType, function (err, result) {
-        if(err){
+        if (err) {
             console.log(err)
         }
-        else{
-            console.log(job +" Added")
+        else {
+            console.log(job + " Added")
+            inquirer
+                .prompt({
+                    name: "action",
+                    type: "list",
+                    message: `${job} + Added Successfully `,
+                    choices: [
+                        "Back To Main Menu",
+                        `Add Another ${job}`,
+                        "Exit",
+                    ]
+                })
+                .then(function (answer) {
+                    let action = answer.action;
+                    if (action.includes("Add Another")) {
+                        addSplitter(job);
+                    }
+                    else if (action === "Back To Main Menu") {
+                        startMenu();
+                    }
+                    else if (action === "Exit") {
+                        return console.log("Goodbye")
+                    }
+                });
         }
     })
 }
