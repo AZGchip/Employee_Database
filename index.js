@@ -85,6 +85,8 @@ function viewMenu() {
             }
         });
 }
+
+// edit menu
 function editMenu() {
     inquirer
         .prompt({
@@ -166,24 +168,24 @@ function removeMenu() {
         });
 }
 
+
+//-------------------- data processing, prompts, and database queries
+
+//this promise is used to return a database query
 let getData = function (table) {
     return new Promise(function (resolve, reject) {
         let search = `SELECT * FROM ${table}`
         connection.query(search, function (err, result) {
             if (err) throw err;
             else {
-                // console.log("returning " + result)
-
                 resolve(result);
-
             }
         })
-
         return resolve
     })
 }
 
-
+//takes raw database data and formats it for use in inquierer. adds pipes for better readablity
 function formatData(list) {
     let choice = [];
     list.forEach(element => {
@@ -203,6 +205,8 @@ function formatData(list) {
     });
     return choice
 }
+
+//prompts user for what is to be edited and what role should it be replaced with
 function editRole(table) {
     let employee_id;
     let role_id
@@ -217,8 +221,6 @@ function editRole(table) {
                         choices: formatData(result)
                     })
                     .then(function (answer) {
-
-
                         employee_id = answer.action.split("| ")[0]
                         employee_id = parseInt(employee_id.match(/\d+/)[0])
                         inquirer
@@ -229,22 +231,16 @@ function editRole(table) {
                                 choices: formatData(roles)
                             })
                             .then(function (answer) {
-
-
                                 role_id = answer.action.split("| ")[0]
                                 role_id = parseInt(role_id.match(/\d+/)[0])
                                 edit(employee_id, role_id, table)
 
                             });
-
                     });
             })
-
-
-
         })
-
 }
+//changes role_id on matching employee_id
 function edit(eId, rId, table) {
     let editParams = `UPDATE employee SET role_id = ${rId} WHERE employee_id = ${eId}`
     connection.query(editParams, function (err, result) {
@@ -276,15 +272,13 @@ function edit(eId, rId, table) {
         }
     });
 }
-// builds choices for inquirer using the selected database table
+// builds choices for inquirer using the selected database table for data removal, prompts user for data removal selection
 function removeList(table) {
     getData(table)
         .then(function (result) {
-            console.log(result)
             let choice = formatData(result)
             choice.push(new inquirer.Separator())
             choice.push("back")
-            // console.log(choice)
             inquirer
                 .prompt({
                     name: "action",
@@ -293,20 +287,19 @@ function removeList(table) {
                     choices: choice,
                 })
                 .then(function (answer) {
-                    console.log(answer.action)
                     if (answer.action === "back") {
                         removeMenu();
                     }
                     else {
-                        console.log("remove choice = " + answer.action)
                         let id = answer.action.split("| ")[0]
                         id = parseInt(id.match(/\d+/)[0])
                         removeFromTable(id, table)
                     }
                 });
         })
-
 }
+
+//deletes selected row from selected table
 function removeFromTable(id, table) {
     let deleteParams = `DELETE FROM ${table} WHERE ${table + "_id"} =${id}`
     connection.query(deleteParams, function (err, result) {
@@ -338,20 +331,16 @@ function removeFromTable(id, table) {
         }
     });
 }
+
+//routes to functions based on input for data addition
 function addSplitter(table) {
-    console.log("addform table =" + table)
-
-
-
     switch (table) {
         case "employee":
             employeeAdd(table)
             break;
-
         case "role":
             roleQ1(table);
             break;
-
         case "department":
             let question =[{
                 type: "input",
@@ -360,16 +349,14 @@ function addSplitter(table) {
             }]
             promptinfo(question,table)
             break;
-
         case "back":
             addMenu();
     }
 }
 
+//selects what query to add for data view selection and querys database
 function view(table) {
     let search;
-
-
     switch (table) {
         case "employee":
             search = `SELECT * FROM employee
@@ -391,15 +378,11 @@ function view(table) {
         else {
             viewTable(result, table)
         }
-
     });
-
-
 }
-
+// displays selected table data 
 function viewTable(info, table) {
     console.table(info)
-
     inquirer
         .prompt({
             name: "action",
@@ -412,7 +395,6 @@ function viewTable(info, table) {
 
         })
         .then(function (answer) {
-            console.log(answer.action)
             if (answer.action === "back") {
                 viewMenu()
             }
@@ -421,8 +403,7 @@ function viewTable(info, table) {
             }
         });
 }
-
-
+//function for adding a role 
 function roleQ1(selection) {
     let search = `SELECT * FROM department`
     connection.query(search, function (err, result) {
@@ -449,16 +430,19 @@ function roleQ1(selection) {
             ]
             promptinfo(roleQuestions, selection);
         }
-
     });
 }
 
-
+//function to add employees
 function employeeAdd(selection) {
     getData("employee")
         .then(function (manager_id) {
             getData("role")
                 .then(function (role_id) {
+                    if (manager_id === undefined){
+                        manager_id = null;
+                    }
+                    else{manager_id = formatData(manager_id)}
                     const employeeQuestions = [
                         {
                             type: "input",
@@ -480,18 +464,16 @@ function employeeAdd(selection) {
                             type: "list",
                             message: "select Manager",
                             name: "manager_id_list",
-                            choices: formatData(manager_id)
+                            choices: manager_id
                         },
 
                     ]
                     promptinfo(employeeQuestions, selection)
                 })
         })
-
-
 }
 
-
+// prompts user with given array and job for data adding
 async function promptinfo(array, job) {
     const info = [];
     //loops through given array of questions using inquirer. builds an object
@@ -517,15 +499,14 @@ async function promptinfo(array, job) {
                 }
                 //if no validation problems are found, adds key/attribute pair to startInfo
                 else {
-                    console.log(answer[key])
                     info.push(answer[key]);
                 }
             })
     }
+    //select add type based on "job"
     let addType;
     if (job === "employee") {
         addType = `INSERT INTO employee (first_name,last_name,role_id,manager_id) VALUES ("${info[0]}","${info[1]}",${info[2]},${info[3]})`;
-        console.log(addType)
     }
     else if (job === "role") {
         addType = `INSERT INTO role (title,salary,department_id) VALUES ("${info[0]}",${info[1]},${info[2]})`;
@@ -533,13 +514,12 @@ async function promptinfo(array, job) {
     else if (job === "department") {
         addType = `INSERT INTO department (name) VALUES ("${info[0]}")`;
     }
-
+    //adds row based on addtype
     connection.query(addType, function (err, result) {
         if (err) {
             console.log(err)
         }
         else {
-            console.log(job + " Added")
             inquirer
                 .prompt({
                     name: "action",
