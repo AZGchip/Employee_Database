@@ -147,7 +147,6 @@ function removeMenu() {
             message: "Remove:",
             choices: [
                 "Employee",
-                "Manager",
                 "Role",
                 "Department",
                 new inquirer.Separator(),
